@@ -42,6 +42,6 @@ tax_total    <- unique(tax_combined)
 
 write.csv(
   tax_total,
-  "../data/tax_total.csv",
+  "../data/tax.total.csv",
   row.names = TRUE
 )
