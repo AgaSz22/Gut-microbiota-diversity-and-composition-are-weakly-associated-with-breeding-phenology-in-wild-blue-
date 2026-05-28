@@ -99,7 +99,7 @@ p1 <- ggplot(brood_level_data_CS, aes(x = Standardised_LD, y = ClutchSize)) +
   ylim(0, 20) +
   theme_tufte(base_size = 18) +
   labs(
-    x = "Standardised egg-laying date",
+    x = "Standardised egg-laying day (SD)",
     y = "Clutch size"
   )
 
@@ -205,7 +205,7 @@ p2 <- ggplot(brood_level_data_fledglings, aes(x = Standardised_LD, y = Fledged_C
   ylim(0, 18) +
   theme_tufte(base_size = 18) +
   labs(
-    x = "Standardised egg-laying date",
+    x = "Standardised egg-laying day (SD)",
     y = "Fledglings"
   )
 
