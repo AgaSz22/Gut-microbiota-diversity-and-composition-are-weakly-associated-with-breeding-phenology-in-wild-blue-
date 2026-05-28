@@ -41,7 +41,7 @@ breeding_2024 <- read_excel("../data/breeding_2024.xlsx")
 # --- 3a. Filter chick data ---------------------------------------------------
 # Filters applied:
 #   - Blue Tit species only
-#   - Valid weight: 0 < Weight < 13  (note: models use Weight > 8)
+#   - Valid weight: 0 < Weight < 13  
 #   - Exclude manipulated nests
 
 chicks_2013_mass <- chicks_2013[c(2, 3, 4, 5, 6, 10, 11, 12)] %>%
@@ -103,7 +103,7 @@ chicks_2024_mass <- chicks_2024_mass %>%
   ) %>%
   dplyr::filter(
     is.na(Manipulation) | Manipulation == "none",
-    Weight > 5 & Weight < 13            
+    !is.na(Weight) & Weight > 0 & Weight < 13           
   )
 
 # --- 4b. Filter breeding data ------------------------------------------------
