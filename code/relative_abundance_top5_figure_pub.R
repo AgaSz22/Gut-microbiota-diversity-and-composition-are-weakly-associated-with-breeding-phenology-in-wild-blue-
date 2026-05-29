@@ -7,7 +7,6 @@
 #          - Dataset has been pre-filtered using decontam (prevalence threshold: 0.57).
 # =============================================================================
 
-
 # ── Libraries ─────────────────────────────────────────────────────────────────
 
 library(phyloseq)
@@ -37,7 +36,7 @@ metadata <- metadata_raw %>%
 
 # ── Filter Mitochondria and Chloroplasts ──────────────────────────────────────
 
-# Remove plastid-associated sequences that are not true bacterial reads
+#Remove plastid-associated sequences that are not true bacterial reads
 asv_filtered <- asv_raw %>%
   filter(
     Order != "Chloroplast",
@@ -181,9 +180,14 @@ ggsave(
 # PLOT 2 — Aggregated Bar Chart by Stage (Negative Controls Excluded)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Exclude negative controls from the stage-level summary
+# Exclude negative controls and aggregate relative abundance by Stage,
+# so that each stage is represented by a single mean value per phylum
+# rather than one bar segment per sample (which causes the striped effect)
+
 plot_phyla_barplot <- plot_phyla %>%
   filter(Stage != "Negative") %>%
+  group_by(Stage, Phylum_grouped) %>%
+  summarise(Rel_abundance = mean(Rel_abundance), .groups = "drop") %>%
   mutate(
     Phylum_grouped = factor(
       Phylum_grouped,
@@ -195,10 +199,11 @@ plot_phyla_barplot <- plot_phyla %>%
 # Plot
 bp_phyla_silva <- ggplot(
   data = plot_phyla_barplot,
-  aes(x = as.factor(Stage), y = Rel_abundance, fill = Phylum_grouped)
+  aes(x = Stage, y = Rel_abundance, fill = Phylum_grouped)
 ) +
   geom_bar(stat = "identity", position = "fill", alpha = 1) +
   scale_fill_manual(values = my_palette) +
+  scale_y_continuous(labels = scales::percent_format()) +
   theme_minimal(base_size = 15) + 
   labs(
     x    = "Stage",
@@ -207,17 +212,16 @@ bp_phyla_silva <- ggplot(
   ) +
   theme(legend.position = "none")
 
+
 bp_phyla_silva
 
 # Save the combined figure as an SVG for publication-quality vector output
-
-# Save the combined figure as an SVG for publication-quality vector output
 ggsave(
-  filename = "../figures/clutch_fledgling_combined.svg",
-  plot     = combined_plot,
+  filename = "../figures/bp_phyla_silvaaa.svg",
+  plot     = bp_phyla_silva,
   device   = "svg",
-  width    = 4,
-  height   = 6,
+  width    = 5,
+  height   = 4,
   units    = "in"
 )
 
