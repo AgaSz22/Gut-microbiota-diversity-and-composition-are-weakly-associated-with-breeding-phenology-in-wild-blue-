@@ -200,9 +200,9 @@ ggsave(
   filename = "../figures/frass_breeding_weather_combined.svg",
   plot     = combined_plot,
   device   = "svg",
-  width    = 210,   # Full A4 width in mm
-  height   = 230,    # 1/3 A4 height in mm
-  units    = "mm"
+  width    = 13,  
+  height   = 8,    
+  units    = "in"
 )
 
 print(combined_plot)
