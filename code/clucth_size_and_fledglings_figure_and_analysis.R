@@ -73,6 +73,7 @@ clutch_model <- lmer(
 )
 
 summary(clutch_model)
+saveRDS(clutch_model, "../rds_objects/clutch_model.rds")
 
 # Residual check — should be approximately normally distributed
 hist(resid(clutch_model), main = "Clutch Model Residuals", xlab = "Residuals")
@@ -179,6 +180,7 @@ fledglings_model <- lmer(
 )
 
 summary(fledglings_model)
+saveRDS(fledglings_model, "../rds_objects/fledglings_model.rds")
 
 # Residual check
 hist(resid(fledglings_model), main = "Fledglings model residuals", xlab = "Residuals")
