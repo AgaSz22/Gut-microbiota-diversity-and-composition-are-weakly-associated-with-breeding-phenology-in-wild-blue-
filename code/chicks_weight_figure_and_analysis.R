@@ -82,6 +82,7 @@ weight_model_sq <- lmer(
 )
 
 summary(weight_model_sq)
+saveRDS(weight_model_sq, file = "../rds_objects/weight_model_sq.rds")
 
 # Residual check — should be approximately normally distributed
 hist(
