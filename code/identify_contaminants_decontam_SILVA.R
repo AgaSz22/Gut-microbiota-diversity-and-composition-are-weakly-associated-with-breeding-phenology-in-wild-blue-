@@ -50,6 +50,8 @@ dna <- Biostrings::DNAStringSet(taxa_names(phylo_with_cont))
 names(dna)      <- taxa_names(phylo_with_cont)
 phylo_with_cont <- merge_phyloseq(phylo_with_cont, dna)
 
+saveRDS(phylo_with_cont, "../rds_objects/phylo_with_cont.rds")
+
 # ── ⚠️ Save the sequence → ASV ID mapping BEFORE renaming ────────────────────
 # taxa_names() currently holds raw nucleotide sequences. Once we rename to
 # ASV1, ASV2... the original sequences are lost from the names — so we
@@ -85,6 +87,10 @@ contaminant_sequences <- asv_id_map %>%
   filter(ASV_ID %in% contaminant_asv_ids) %>%
   pull(Sequence)
 
+# ── 6. Save a phyloseq object with no contaminants  ────────────────────────────────
+
+phylo_no_cont <- prune_taxa(!contamdf$contaminant, phylo_with_cont)
+saveRDS(phylo_no_cont, file = "../rds_objects/phyloseq_cleaned.rds")
 
 # ── 7. Build Decontaminated ASV Table ─────────────────────────────────────────
 
