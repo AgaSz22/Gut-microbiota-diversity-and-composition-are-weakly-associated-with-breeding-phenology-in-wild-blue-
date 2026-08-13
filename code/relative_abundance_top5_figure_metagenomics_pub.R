@@ -21,7 +21,7 @@ library(phyloseq)   # Microbiome data structures
 # ── Define File Paths and Group Labels ────────────────────────────────────────
 
 # Base directory containing Bracken family-level output files
-bracken_dir <- "../HPC_data/project_m/Bracken/"
+bracken_dir <- "../data"
 
 # Named vector: group label → filename
 bracken_files <- c(
@@ -44,23 +44,19 @@ all_groups_bracken <- lapply(names(bracken_files), function(group) {
   
 }) %>%
   bind_rows() %>%
-  select(1, 6, Group) %>%           # Retain: family name, count, group label
-  rename(Phylum = 1, Count = 2) %>%    # Rename columns for clarity
+  select(1, 6, Group) %>%
+  setNames(c("Phylum", "Count", "Group")) %>%  # ← Fixed here
   filter(Phylum != "Chordata")
 
 head(all_groups_bracken)
 
 # ── Compute Relative Abundance ────────────────────────────────────────────────
 
-# Step 1: Collapse any duplicate phylum–group rows by summing counts
-bracken_summarised <- all_groups_bracken %>%
-  group_by(Phylum, Group) %>%
-  summarise(Total_Count = sum(Count), .groups = "drop")
-
 # Step 2: Calculate relative abundance per group.
 #         Groups with zero total reads are assigned 0 to avoid division by zero.
-bracken_relabu <- bracken_summarised %>%
-  group_by(Group) %>%
+bracken_relabu <- all_groups_bracken %>%
+  group_by(Phylum, Group) %>%
+  summarise(Total_Count = sum(Count), .groups = "drop") %>%
   mutate(
     group_total   = sum(Total_Count, na.rm = TRUE),
     Rel_Abundance = ifelse(group_total == 0, 0, Total_Count / group_total)
@@ -140,23 +136,41 @@ plot_phyla_by_stage <- plot_phyla %>%
     )
   )
 
-# Plot
+#Plot
+
 plot_phyla_stage <- ggplot(
   data = plot_phyla_by_stage,
   aes(x = Stage, y = Rel_Abundance, fill = Phylum_grouped)
 ) +
-  geom_bar(stat = "identity", position = "fill", alpha = 1) +
+  geom_bar(
+    stat      = "identity",
+    position  = "fill",
+    width     = 0.9,
+    color     = NA,
+    linewidth = 0
+  ) +
   scale_fill_manual(values = my_palette) +
-  scale_y_continuous(labels = scales::percent_format()) +
+  scale_y_continuous(
+    labels = scales::percent_format(),
+    expand = c(0, 0),
+    limits = c(0, 1)
+  ) +
+  scale_x_discrete(expand = c(0.3, 0.3)) +
   theme_minimal(base_size = 15) +
   labs(
-    x     = "Stage",
-    y     = "Relative abundance",
-    fill  = "Phylum"
+    x    = NULL,
+    y    = "Relative abundance",
+    fill = "Phylum"
   ) +
-  theme(legend.position = "none")
+  theme(
+    axis.text.x        = element_text(size = 13),
+    axis.text.y        = element_text(size = 11),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor   = element_blank(),
+    legend.position    = "none"
+  )
 
-print(plot_phyla_stage)
+plot_phyla_stage
 
 # Save as SVG
 ggsave(

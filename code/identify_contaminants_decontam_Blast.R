@@ -119,9 +119,34 @@ asv_with_taxonomy <- asv_with_taxonomy %>%
 
 cat("ASVs after removal:       ", nrow(asv_with_taxonomy), "\n")
 
+# Confirm the difference between the initial number of ASVs and the number of ASVs after assigning the taxonomy (bigest loss) and removing contaminants
+cat("ASVs removed:             ", 
+    nrow(asv_table) - (nrow(asv_with_taxonomy) - length(contaminant_indices)), "\n")
+
 # Drop the Sequence column before export
 asv_with_taxonomy <- asv_with_taxonomy %>%
   select(-Sequence)
+
+write.csv(
+  asv_with_taxonomy,
+  "../data/ASV_with_taxonomy_p57_Blast_with_plastids.csv",
+  row.names = FALSE,
+  quote     = FALSE
+)
+
+
+##### Removing plasmids
+
+asv_with_taxonomy_all_with_phyla <- asv_with_taxonomy %>%
+  filter(!is.na(phylum))
+diff_phyla <- nrow(asv_with_taxonomy) - nrow(asv_with_taxonomy_all_with_phyla)
+cat("The number of ASVs not identifiabe at the phylum level (removed):  ", diff_phyla, "\n")
+
+plastids <- asv_with_taxonomy_all_with_phyla %>% subset(family == "Mitochondria" | order == "Chloroplast")
+
+asv_with_taxonomy_no_plastids <- asv_with_taxonomy_all_with_phyla %>%
+  filter(family != "Mitochondria" & order != "Chloroplast")
+cat("The number of plastid ASVs removed:  ", nrow(plastids), "\n")
 
 
 # ── 8. Export Decontaminated ASV Tables ───────────────────────────────────────
@@ -130,14 +155,14 @@ asv_with_taxonomy <- asv_with_taxonomy %>%
 #   - row.names = FALSE → for relative abundance visualisation and general use
 
 write.csv(
-  asv_with_taxonomy,
+  asv_with_taxonomy_no_plastids,
   "../data/ASV_with_taxonomy_p57_row_names_Blast.csv",
   row.names = TRUE,
   quote     = FALSE
 )
 
 write.csv(
-  asv_with_taxonomy,
+  asv_with_taxonomy_no_plastids,
   "../data/ASV_with_taxonomy_p57_Blast.csv",
   row.names = FALSE,
   quote     = FALSE

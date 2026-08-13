@@ -115,26 +115,50 @@ cat("ASVs after removal:       ", nrow(asv_with_taxonomy), "\n")
 
 # Confirm the difference between the initial number of ASVs and the number of ASVs after assigning the taxonomy (bigest loss) and removing contaminants
 cat("ASVs removed:             ", 
-    length(contaminant_sequences) - 
-      (nrow(asv_with_taxonomy) - nrow(asv_table) + length(contaminant_sequences)), "\n")
+    nrow(asv_table) - (nrow(asv_with_taxonomy) - length(contaminant_sequences)), "\n")
 
 # Drop the Sequence column before export
 asv_with_taxonomy <- asv_with_taxonomy %>%
   select(-Sequence)
+
+######
+
+write.csv(
+  asv_with_taxonomy,
+  "../data/ASV_with_taxonomy_p57_SILVA_with_plastids.csv",
+  row.names = FALSE,
+  quote     = FALSE
+)
+
+
+######## Removing plasmids
+
+
+asv_with_taxonomy_all_with_phyla <- asv_with_taxonomy %>%
+  filter(!is.na(Phylum))
+diff_phyla <- nrow(asv_with_taxonomy) - nrow(asv_with_taxonomy_all_with_phyla)
+cat("The number of ASVs not identifiabe at the phylum level (removed):  ", diff_phyla, "\n")
+
+plastids <- asv_with_taxonomy_all_with_phyla %>% subset(Family == "Mitochondria" | Order == "Chloroplast")
+
+asv_with_taxonomy_no_plastids <- asv_with_taxonomy_all_with_phyla %>%
+  filter(Family != "Mitochondria" & Order != "Chloroplast")
+cat("The number of plastid ASVs removed:  ", nrow(plastids), "\n")
+
 # ── 8. Export Decontaminated ASV Tables ───────────────────────────────────────
 # Two versions are exported:
 #   - row_names = TRUE  → for phyloseq (requires ASV IDs as row names)
 #   - row_names = FALSE → for relative abundance visualisation and general use
 
 write.csv(
-  asv_with_taxonomy,
+  asv_with_taxonomy_no_plastids,
   "../data/ASV_with_taxonomy_p57_row_names.csv",
   row.names = TRUE,
   quote     = FALSE
 )
 
 write.csv(
-  asv_with_taxonomy,
+  asv_with_taxonomy_no_plastids,
   "../data/ASV_with_taxonomy_p57.csv",
   row.names = FALSE,
   quote     = FALSE
@@ -144,7 +168,7 @@ write.csv(
 
 kk <- read.csv("../data/ASV_with_taxonomy_p57.csv") # 2 742
 
-kk2 <- kk %>% filter(!is.na(Phylum)) # 2 739, 99,9%
+kk2 <- kk %>% filter(!is.na(Phylum)) # 2 739, 99,9% -> after removing rows with unclassified phyla, 100%
 
 kk3 <- kk %>% filter(!is.na(Class)) # 2 725, 99,4%
 

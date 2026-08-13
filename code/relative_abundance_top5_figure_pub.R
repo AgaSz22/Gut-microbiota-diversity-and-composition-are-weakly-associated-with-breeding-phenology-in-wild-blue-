@@ -9,14 +9,7 @@
 
 # ── Libraries ─────────────────────────────────────────────────────────────────
 
-library(phyloseq)
-library(ggplot2)
 library(tidyverse)
-library(forcats)
-library(dplyr)
-library(tidyr)
-library(taylor)
-
 
 # ── Load Data ─────────────────────────────────────────────────────────────────
 
@@ -34,19 +27,10 @@ metadata <- metadata_raw %>%
   )
 
 
-# ── Filter Mitochondria and Chloroplasts ──────────────────────────────────────
-
-#Remove plastid-associated sequences that are not true bacterial reads
-asv_filtered <- asv_raw %>%
-  filter(
-    Order != "Chloroplast",
-    Class != "Mitochondria"
-  )
-
 # Retain only the Phylum column and sample count columns.
 # NOTE: Columns 331–337 are non-sample metadata columns; adjust indices if the
 #       input file structure changes.
-asv_filtered <- asv_filtered %>%
+asv_filtered <- asv_raw %>%
   select(-c(331, 333, 334, 335, 336, 337))
 
 
@@ -146,21 +130,42 @@ pseudomona_abundance <- plot_phyla %>%
     by = c("Sample_ID", "Stage")
   )
 
-# Step 3: Plot
 pseudomona_abundance_viz <- pseudomona_abundance %>%
   ggplot(aes(x = Sample_ID_ordered, y = Rel_abundance, fill = Phylum_grouped)) +
-  geom_bar(stat = "identity", position = "fill", width = 1) +
+  
+  # KEY FIX 1: Remove bar border seams within each group
+  geom_bar(
+    stat      = "identity",
+    position  = "fill",
+    width     = 1,
+    color     = NA,        # no border colour
+    linewidth = 0          # zero border width
+  ) +
+  
   facet_grid(~ Stage, scales = "free_x", space = "free_x") +
   scale_fill_manual(values = my_palette) +
-  theme_minimal(base_size = 18) + 
+  
+  # KEY FIX 2: Remove internal padding so bars fill the panel edge-to-edge
+  scale_y_continuous(expand = c(0, 0)) +
+  scale_x_discrete(expand = c(0, 0)) +
+  
+  theme_minimal(base_size = 18) +
+  
   labs(
     x    = "Sample ID",
-    y    = "Relative abundance",
-    fill = "Phylum",
+    y    = "Relative Abundance",
+    fill = "Phylum"
   ) +
+  
   theme(
     axis.text.x  = element_blank(),
-    axis.ticks.x = element_blank()
+    axis.ticks.x = element_blank(),
+    
+    # KEY FIX 3: Remove internal grid lines that bleed through bars
+    panel.grid   = element_blank(),
+    
+    # ✅ panel.spacing is intentionally left at its default
+    #    so the white space between Stage groups is preserved
   )
 
 pseudomona_abundance_viz
