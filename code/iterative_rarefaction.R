@@ -25,6 +25,7 @@ library(lme4)
 
 phylo_clean    <- readRDS("../rds_objects/phyloseq_cleaned.rds")
 phylo_with_cont <- readRDS("../rds_objects/phylo_with_cont.rds") 
+phylo_clean_no_plasmids <- readRDS("../rds_objects/phyloseq_cleaned_no_plasmids.rds")
 
 # ── 3. Summarise read counts ────────────────────────────────────────────────────────
 
@@ -50,13 +51,15 @@ summarise_readcounts(ps_cont_negatives, "Negative controls (with contaminants)")
 
 # ── 4. Pick rarefaction depth ────────────────────────────────────────────────────────
 
-read_counts <- microbiome::readcount(ps_no_negatives) |>
+ps_no_negatives_no_plasmids <- subset_samples(phylo_clean_no_plasmids, Stage != "Negative")
+
+read_counts <- microbiome::readcount(ps_no_negatives_no_plasmids) |>
   as.data.frame() |>
   setNames("Read_counts") |>
   tibble::rownames_to_column("Sample")
 
 
-RAREFACTION_THRESHOLD <- 9000  
+RAREFACTION_THRESHOLD <- 7000  
 
 set.seed(46)
 read_counts |>
@@ -79,7 +82,7 @@ read_counts |>
 
 # ── 5. Rarefy and save outputs────────────────────────────────────────────────────────
 
-RAREFACTION_SIZE  <- 9000
+RAREFACTION_SIZE  <- 7000
 RAREFACTION_ITERS <- 500
 MASTER_SEED       <- 2605
 OUTPUT_PATH       <- "../results/alpha_df_mean.rds"
@@ -93,7 +96,7 @@ message(sprintf("Starting iterative rarefaction: %d iterations at depth %d",
 
 # Initialise accumulator on iteration 1
 alpha_df_sum <- phyloseq::rarefy_even_depth(
-  phylo_clean,
+  phylo_clean_no_plasmids,        # here goes the phyloseq object without chloroplasts and mitochondria!!!
   sample.size = RAREFACTION_SIZE,
   rngseed     = rngseed_vec[1],
   verbose     = FALSE
