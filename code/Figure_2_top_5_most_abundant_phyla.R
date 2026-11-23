@@ -90,7 +90,6 @@ plot_phyla <- asv_summarised %>%
   select(-sample_total) %>%
   ungroup()
 
-
 # ── Handle Zero-Count Samples (Empty Negative Controls) ──────────────────────
 
 # Separate zero-count and non-zero samples
