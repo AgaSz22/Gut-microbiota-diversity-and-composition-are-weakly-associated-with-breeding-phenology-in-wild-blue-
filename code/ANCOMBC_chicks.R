@@ -11,7 +11,7 @@ library(phyloseq)
 # 1. Load and Prepare Data
 # =============================================================================
 
-phylo_clean <- readRDS("../rds_objects/phyloseq_cleaned.rds")
+phylo_clean <- readRDS("../rds_objects/phyloseq_cleaned_no_plasmids.rds")
 
 # Extract metadata and compute Days_to_frass vectorised (no loop needed)
 meta_data <- microbiome::meta(phylo_clean)
@@ -33,11 +33,12 @@ phylo_filtered_chicks  <- subset_samples(phylo_clean, Stage == "Chick")
 #'
 #' @param data      A phyloseq object.
 #' @param tax_level Taxonomic level string (e.g. "Species", "Genus").
-#' @param lib_cut   Minimum library size cut-off (default 1000).
+#' @param prv_cut   A proportion of samples containing given taxon.
+#' @param lib_cut   Minimum library size cut-off (default 4000).
 #' @param save_path File path for saving the RDS output.
 #'
 #' @return The full ancombc2 output object.
-run_ancombc2 <- function(data, tax_level, lib_cut = 1000, save_path) {
+run_ancombc2 <- function(data, tax_level, prv_cut = 0.1, lib_cut = 4000, save_path) {
   set.seed(123)
   
   output <- ancombc2(
@@ -47,7 +48,7 @@ run_ancombc2 <- function(data, tax_level, lib_cut = 1000, save_path) {
     rand_formula  = "(1 | Nest)",
     p_adj_method  = "holm",
     pseudo_sens   = TRUE,
-    prv_cut       = 0.05,
+    prv_cut       = prv_cut,
     lib_cut       = lib_cut,
     s0_perc       = 0.05,
     struc_zero    = FALSE,
@@ -105,11 +106,12 @@ output_class_chicks  <- run_ancombc2(
 )
 results_chicks_class <- output_class_chicks$res
 
-# Order — note: lib_cut differs from other levels (9000 vs 1000 and 5% vs 10% of taxa)
+# Order — note: lib_cut differs from other levels (7000 vs 1000 and 10% vs 30% of taxa)
 output_order_chicks  <- run_ancombc2(
   data      = phylo_filtered_chicks,
   tax_level = "Order",
-  lib_cut   = 9000,
+  prv_cut = 0.3,
+  lib_cut   = 7000,
   save_path = "../rds_objects/ANCOMBC_output_order_chicks.rds"
 )
 results_chicks_order <- output_order_chicks$res

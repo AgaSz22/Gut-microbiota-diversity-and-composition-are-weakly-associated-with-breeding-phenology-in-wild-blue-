@@ -11,6 +11,8 @@ library(phyloseq)
 # 1. Load and Prepare Data
 # =============================================================================
 
+phylo_clean <- readRDS("../rds_objects/phyloseq_cleaned_no_plasmids.rds")
+
 # Add Sample_ID as explicit column (used for filtering)
 sample_data(phylo_clean)$Sample_ID <- rownames(sample_data(phylo_clean))
 
@@ -30,11 +32,12 @@ phylo_filtered_females <- subset_samples(
 #'
 #' @param data      A phyloseq object.
 #' @param tax_level Taxonomic level string (e.g. "Species", "Genus").
+#' @param prv_cut   A proportion of samples containing given taxon.
 #' @param lib_cut   Minimum library size cut-off (default 1000).
 #' @param save_path File path for saving the RDS output.
 #'
 #' @return The full ancombc2 output object.
-run_ancombc2 <- function(data, tax_level, lib_cut = 1000, save_path) {
+run_ancombc2 <- function(data, tax_level, prv_cut = 0.1, lib_cut = 4000, save_path) {
   set.seed(123)
   
   output <- ancombc2(
@@ -44,7 +47,7 @@ run_ancombc2 <- function(data, tax_level, lib_cut = 1000, save_path) {
     rand_formula  = "(1 | Capture_Date)",
     p_adj_method  = "holm",
     pseudo_sens   = TRUE,
-    prv_cut       = 0.05,
+    prv_cut       = prv_cut,
     lib_cut       = lib_cut,
     s0_perc       = 0.05,
     struc_zero    = FALSE,
