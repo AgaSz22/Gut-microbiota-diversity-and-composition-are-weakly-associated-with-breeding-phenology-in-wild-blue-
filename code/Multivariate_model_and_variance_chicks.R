@@ -17,6 +17,7 @@ library(cowplot)
 library(sjPlot)
 library(bayesplot)
 library(rstan)
+library(tidybayes)
 
 
 # =============================================================================
@@ -56,6 +57,7 @@ alpha_diversity_chicks <- all_diversity_indices %>%
   assign_colors_per_date(date_col = "Capture_Date", nest_col = "Nest")
 
 
+set.seed(98)
 # =============================================================================
 # 3. PRIOR SPECIFICATION
 # =============================================================================
@@ -63,14 +65,14 @@ alpha_diversity_chicks <- all_diversity_indices %>%
 priors_chicks <- c(
   
   # --- Intercepts ---
-  prior(normal(84,   3.70), class = "Intercept", resp = "observed",                lb = 0),
+  prior(normal(84.5,   3.25), class = "Intercept", resp = "observed",                lb = 0),
   prior(normal(10,   0.30), class = "Intercept", resp = "FaithPD",                 lb = 0),
-  prior(normal(13,   1.50), class = "Intercept", resp = "diversityinversesimpson", lb = 0),
-  prior(normal(3,    0.10), class = "Intercept", resp = "diversityshannon",        lb = 0),
+  prior(normal(12.5,   1.30), class = "Intercept", resp = "diversityinversesimpson", lb = 0),
+  prior(normal(3,    0.15), class = "Intercept", resp = "diversityshannon",        lb = 0),
   
   # --- Slopes: observed ---
-  prior(normal( 0.04, 0.60), class = "b", coef = "Relative_to_frass",    resp = "observed"),
-  prior(normal( 0.03, 0.10), class = "b", coef = "IRelative_to_frassE2", resp = "observed"),
+  prior(normal( 0.05, 0.50), class = "b", coef = "Relative_to_frass",    resp = "observed"),
+  prior(normal( 0.02, 0.10), class = "b", coef = "IRelative_to_frassE2", resp = "observed"),
   
   # --- Slopes: inverse Simpson ---
   prior(normal(-0.55, 0.25), class = "b", coef = "Relative_to_frass",    resp = "diversityinversesimpson"),
@@ -78,17 +80,17 @@ priors_chicks <- c(
   
   # --- Slopes: Shannon ---
   prior(normal(-0.04, 0.05),  class = "b", coef = "Relative_to_frass",    resp = "diversityshannon"),
-  prior(normal( 0.00, 0.005), class = "b", coef = "IRelative_to_frassE2", resp = "diversityshannon"),
+  prior(normal( 0.00, 0.01), class = "b", coef = "IRelative_to_frassE2", resp = "diversityshannon"),
   
   # --- Slopes: Faith PD ---
   prior(normal(0.01, 0.05), class = "b", coef = "Relative_to_frass",    resp = "FaithPD"),
   prior(normal(0.00, 0.05), class = "b", coef = "IRelative_to_frassE2", resp = "FaithPD"),
   
   # --- Sigmas ---
-  prior(normal(21.7,  1.70), class = "sigma", resp = "observed",                lb = 0),
-  prior(normal(6.25,  0.50), class = "sigma", resp = "diversityinversesimpson",  lb = 0),
+  prior(normal(21.7,  1.25), class = "sigma", resp = "observed",                lb = 0),
+  prior(normal(6.30,  0.50), class = "sigma", resp = "diversityinversesimpson",  lb = 0),
   prior(normal(0.5,   0.05), class = "sigma", resp = "diversityshannon",         lb = 0),
-  prior(normal(2.00,  0.20), class = "sigma", resp = "FaithPD",                  lb = 0)
+  prior(normal(2.00,  0.15), class = "sigma", resp = "FaithPD",                  lb = 0)
 )
 
 
@@ -116,8 +118,8 @@ model_chicks <-
 multivariate_model_chicks <- brm(
   model_chicks,
   data    = alpha_diversity_chicks,
-  iter    = 5000,   # Total iterations per chain
-  warmup  = 1000,   # Burn-in iterations
+  iter    = 20000,   # Total iterations per chain
+  warmup  = 5000,   # Burn-in iterations
   chains  = 4,
   cores   = 4,
   prior   = priors_chicks,
@@ -173,33 +175,46 @@ pp_check(multivariate_model_chicks, resp = "FaithPD",                  ndraws = 
 # 8. VARIANCE DECOMPOSITION
 # =============================================================================
 
-# Extract variance-covariance components
-vc <- VarCorr(multivariate_model_chicks, summary = TRUE)
+vc <- VarCorr(multivariate_model_chicks, summary = TRUE) # Extract variance-covariance components
 
-var_random <- vc$Nest$sd[, "Estimate"]^2
-var_resid  <- vc$residual$sd[, "Estimate"]^2
+# Random-effect standard deviations (Nest)
+random_sd <- vc$Nest$sd[, "Estimate"]
+random_response <- sub("_Intercept$", "", rownames(vc$Nest$sd))
 
-# Build variance table
+# Residual standard deviations
+residual_sd <- vc$residual$sd[, "Estimate"]
+residual_response <- sub("_Intercept$", "", rownames(vc$residual$sd))
+
+var_random <- random_sd^2 # Convert standard deviations to variances
+var_residual <- residual_sd^2
+
 var_table <- data.frame(
-  Response     = gsub("_Intercept", "", rownames(vc$Nest$sd)),
-  Var_Random   = var_random,
-  Var_Residual = var_resid
+  Response = random_response,
+  Var_Random = unname(var_random)
 )
 
-# Compute fixed-effect variance from fitted values (excluding random effects)
-var_table$Var_Fixed <- sapply(var_table$Response, function(r) {
-  preds <- fitted(multivariate_model_chicks, resp = r, re_formula = NA)[, "Estimate"]
-  var(preds)
-})
+var_table$Var_Residual <- var_residual[
+  match(var_table$Response, residual_response) # Match residual variances to the corresponding responses
+]
 
-# Compute total variance and proportions
-var_table$Var_Total     <- var_table$Var_Fixed + var_table$Var_Random + var_table$Var_Residual
-var_table$Prop_Fixed    <- var_table$Var_Fixed    / var_table$Var_Total
-var_table$Prop_Random   <- var_table$Var_Random   / var_table$Var_Total
-var_table$Prop_Residual <- var_table$Var_Residual / var_table$Var_Total
+# Calculate total variance and variance proportions
+var_table$Var_Total <- with(
+  var_table,
+  Var_Random + Var_Residual
+)
 
+var_table$Prop_Random <- with(
+  var_table,
+  Var_Random / Var_Total
+)
+
+var_table$Prop_Residual <- with(
+  var_table,
+  Var_Residual / Var_Total
+)
+
+# Display the results
 print(var_table, digits = 3)
-
 
 # =============================================================================
 # 9. VISUALISATION
@@ -256,7 +271,7 @@ plot_chick_simpson <- ggplot(alpha_diversity_chicks, aes(x = Relative_to_frass, 
     n.breaks = 6,
     expand = shared_y_expansion
   ) +
-  geom_abline(intercept = 12.3, slope = -0.55, color = "black", linetype = "dashed") +
+  geom_abline(intercept = 12.08, slope = -0.56, color = "black", linetype = "dashed") +
   theme_minimal(base_size = shared_base_size) +
   theme(
     panel.grid   = element_blank(),

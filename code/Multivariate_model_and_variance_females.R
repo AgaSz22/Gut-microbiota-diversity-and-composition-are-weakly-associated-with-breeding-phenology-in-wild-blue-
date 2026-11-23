@@ -30,6 +30,7 @@ alpha_diversity_females <- all_diversity_indices %>%
   filter(Stage == "Female" & !Sample_ID %in% c("S71", "S70.2"))
 
 
+set.seed(98)
 # =============================================================================
 # 3. PRIOR SPECIFICATION
 # =============================================================================
@@ -37,34 +38,33 @@ alpha_diversity_females <- all_diversity_indices %>%
 priors_females <- c(
   
   # --- Intercepts ---
-  prior(normal(65,  5.50), class = "Intercept", resp = "observed",                lb = 0),
-  prior(normal(7,   1.70), class = "Intercept", resp = "diversityinversesimpson", lb = 0),
-  prior(normal(2.5, 0.25), class = "Intercept", resp = "diversityshannon",        lb = 0),
-  prior(normal(9,   0.55), class = "Intercept", resp = "FaithPD",                 lb = 0),
+  prior(normal(67, 5), class = "Intercept", resp = "observed",                lb = 0),
+  prior(normal(6.2,  1.2), class = "Intercept", resp = "diversityinversesimpson", lb = 0),
+  prior(normal(2.3,  0.2), class = "Intercept", resp = "diversityshannon",        lb = 0),
+  prior(normal(8.3,  0.5), class = "Intercept", resp = "FaithPD",                 lb = 0),
   
   # --- Slopes: observed ---
-  prior(normal( 0.25, 1.10), class = "b", coef = "Laying_day",    resp = "observed"),
-  prior(normal(-0.00, 0.05), class = "b", coef = "ILaying_dayE2", resp = "observed"),
+  prior(normal( 0.4, 0.7), class = "b", coef = "Laying_day",    resp = "observed"),
+  prior(normal(-0.01, 0.05), class = "b", coef = "ILaying_dayE2", resp = "observed"),
   
   # --- Slopes: inverse Simpson ---
-  prior(normal( 0.50, 0.40), class = "b", coef = "Laying_day",    resp = "diversityinversesimpson"),
-  prior(normal(-0.02, 0.01), class = "b", coef = "ILaying_dayE2", resp = "diversityinversesimpson"),
+  prior(normal( 0.55, 0.2), class = "b", coef = "Laying_day",    resp = "diversityinversesimpson"),
+  prior(normal(-0.02, 0.05), class = "b", coef = "ILaying_dayE2", resp = "diversityinversesimpson"),
   
   # --- Slopes: Shannon ---
   prior(normal( 0.02, 0.05), class = "b", coef = "Laying_day",    resp = "diversityshannon"),
-  prior(normal(-0.00, 0.05), class = "b", coef = "ILaying_dayE2", resp = "diversityshannon"),
+  prior(normal(0.00, 0.01), class = "b", coef = "ILaying_dayE2", resp = "diversityshannon"),
   
   # --- Slopes: Faith PD ---
-  prior(normal(-0.04, 0.10), class = "b", coef = "Laying_day",    resp = "FaithPD"),
-  prior(normal( 0.00, 0.05), class = "b", coef = "ILaying_dayE2", resp = "FaithPD"),
+  prior(normal(-0.05, 0.1), class = "b", coef = "Laying_day",    resp = "FaithPD"),
+  prior(normal( 0.00, 0.01), class = "b", coef = "ILaying_dayE2", resp = "FaithPD"),
   
-  # --- Sigmas (inflated ~15–20%) ---
-  prior(normal(37,   3.15), class = "sigma", resp = "observed",                lb = 0),
-  prior(normal(8,    0.65), class = "sigma", resp = "diversityinversesimpson", lb = 0),
-  prior(normal(1.00, 0.10), class = "sigma", resp = "diversityshannon",        lb = 0),
-  prior(normal(3.00, 0.30), class = "sigma", resp = "FaithPD",                 lb = 0)
+  # --- Sigmas  ---
+  prior(normal(36, 2), class = "sigma", resp = "observed",                lb = 0),
+  prior(normal(7.8,  0.5), class = "sigma", resp = "diversityinversesimpson", lb = 0),
+  prior(normal(1,  0.1), class = "sigma", resp = "diversityshannon",        lb = 0),
+  prior(normal(3.2,  0.2), class = "sigma", resp = "FaithPD",                 lb = 0)
 )
-
 
 # =============================================================================
 # 4. MODEL STRUCTURE
@@ -91,8 +91,8 @@ model_females <-
 multivariate_model_females <- brm(
   model_females,
   data    = alpha_diversity_females,
-  iter    = 5000,   # Total iterations per chain
-  warmup  = 1000,   # Burn-in iterations
+  iter    = 20000,   # Total iterations per chain
+  warmup  = 5000,   # Burn-in iterations
   chains  = 4,
   cores   = 4,
   prior   = priors_females,
@@ -148,33 +148,46 @@ pp_check(multivariate_model_females, resp = "FaithPD",                 ndraws = 
 # 8. VARIANCE DECOMPOSITION
 # =============================================================================
 
-# Extract variance-covariance components
-vc_f <- VarCorr(multivariate_model_females, summary = TRUE)
+vc <- VarCorr(multivariate_model_females, summary = TRUE) # Extract variance-covariance components
 
-var_random_f <- vc_f$Capture_Date$sd[, "Estimate"]^2
-var_resid_f  <- vc_f$residual$sd[, "Estimate"]^2
+# Random-effect standard deviations (Nest)
+random_sd <- vc$Capture_Date$sd[, "Estimate"]
+random_response <- sub("_Intercept$", "", rownames(vc$Capture_Date$sd))
 
-# Build variance table
-var_table_f <- data.frame(
-  Response     = gsub("_Intercept", "", rownames(vc_f$Capture_Date$sd)),
-  Var_Random   = var_random_f,
-  Var_Residual = var_resid_f
+# Residual standard deviations
+residual_sd <- vc$residual$sd[, "Estimate"]
+residual_response <- sub("_Intercept$", "", rownames(vc$residual$sd))
+
+var_random <- random_sd^2 # Convert standard deviations to variances
+var_residual <- residual_sd^2
+
+var_table <- data.frame(
+  Response = random_response,
+  Var_Random = unname(var_random)
 )
 
-# Compute fixed-effect variance from fitted values (excluding random effects)
-var_table_f$Var_Fixed <- sapply(var_table_f$Response, function(r) {
-  preds <- fitted(multivariate_model_females, resp = r, re_formula = NA)[, "Estimate"]
-  var(preds)
-})
+var_table$Var_Residual <- var_residual[
+  match(var_table$Response, residual_response) # Match residual variances to the corresponding responses
+]
 
-# Compute total variance and proportions
-var_table_f$Var_Total     <- var_table_f$Var_Fixed + var_table_f$Var_Random + var_table_f$Var_Residual
-var_table_f$Prop_Fixed    <- var_table_f$Var_Fixed    / var_table_f$Var_Total
-var_table_f$Prop_Random   <- var_table_f$Var_Random   / var_table_f$Var_Total
-var_table_f$Prop_Residual <- var_table_f$Var_Residual / var_table_f$Var_Total
+# Calculate total variance and variance proportions
+var_table$Var_Total <- with(
+  var_table,
+  Var_Random + Var_Residual
+)
 
-print(var_table_f, digits = 3)
+var_table$Prop_Random <- with(
+  var_table,
+  Var_Random / Var_Total
+)
 
+var_table$Prop_Residual <- with(
+  var_table,
+  Var_Residual / Var_Total
+)
+
+# Display the results
+print(var_table, digits = 3)
 
 # =============================================================================
 # 9. VISUALISATION
@@ -222,7 +235,7 @@ plot_females_faith <- ggplot(alpha_diversity_females, aes(x = Laying_day, y = Fa
 plot_females_simpson <- ggplot(alpha_diversity_females, aes(x = Laying_day, y = diversity_inverse_simpson)) +
   geom_point(alpha = shared_alpha, size = shared_point_size, colour = "#B39EB5") +
   labs(x = "Egg-laying date", y = "Inverse Simpson") +
-  geom_abline(intercept = 6.24, slope = 0.54, color = "black", linetype = "dashed") +
+  geom_abline(intercept = 5.65, slope = 0.54, color = "black", linetype = "dashed") +
   scale_x_continuous(n.breaks = 12) +
   scale_y_continuous(
     limits = c(0, NA),
